@@ -21,9 +21,7 @@ You can get proxies obtained using this project in [monosans/proxy-list](https:/
 
 ### Standalone executable
 
-This is the easiest way, but it is only available for x86-64 Windows, x86-64/arm64 macOS and x86-64 Linux. Just download the archive for your OS from [nightly.link](https://nightly.link/monosans/proxy-scraper-checker/workflows/ci/main?preview), unzip it, edit `config.toml` and run the `proxy_scraper_checker` executable.
-
-If Windows antivirus detects the executable file as a virus, please read [this](https://github.com/Nuitka/Nuitka/issues/2495#issuecomment-1762836583).
+Just download the archive for your OS from [nightly.link](https://nightly.link/monosans/proxy-scraper-checker/workflows/ci/main?preview), unzip it, edit `config.toml` and run the `proxy_scraper_checker` executable.
 
 ### Docker
 
@@ -33,14 +31,14 @@ If Windows antivirus detects the executable file as a virus, please read [this](
 - Run the following commands:
   ```bash
   docker compose build --pull
-  docker compose up --no-log-prefix
+  docker compose up --no-log-prefix --remove-orphans
   ```
 
 ### Running from source code
 
 #### Desktop
 
-- Install [Python](https://python.org/downloads). The minimum version required is 3.8.
+- Install [Python](https://python.org/downloads). Supported versions are 3.9 to 3.13.
 - Download and unpack [the archive with the program](https://github.com/monosans/proxy-scraper-checker/archive/refs/heads/main.zip).
 - Edit `config.toml` to your preference.
 - Run the script that installs dependencies and starts `proxy-scraper-checker`:
@@ -59,7 +57,7 @@ To use `proxy-scraper-checker` in Termux, knowledge of the Unix command-line int
 - Edit `~/proxy-scraper-checker/config.toml` to your preference using a text editor (vim/nano).
 - To run `proxy-scraper-checker` use the following command:
   ```bash
-  cd ~/proxy-scraper-checker && sh start-termux.sh
+  cd ~/proxy-scraper-checker && sh start.sh
   ```
 
 ## Something else?

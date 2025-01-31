@@ -7,6 +7,7 @@ import logging
 import math
 import stat
 import sys
+from asyncio.selector_events import BaseSelectorEventLoop
 from pathlib import Path
 from types import MappingProxyType
 from typing import TYPE_CHECKING
@@ -17,35 +18,34 @@ import platformdirs
 from aiohttp import ClientTimeout, hdrs
 from aiohttp_socks import ProxyType
 
-from . import fs, sort
-from .http import get_response_text
-from .null_context import NullContext
-from .parsers import parse_ipv4
-from .utils import IS_DOCKER
+from proxy_scraper_checker import fs, sort
+from proxy_scraper_checker.http import get_response_text
+from proxy_scraper_checker.null_context import NullContext
+from proxy_scraper_checker.parsers import parse_ipv4
+from proxy_scraper_checker.utils import is_docker
 
 if TYPE_CHECKING:
-    from typing import Callable, Iterable, Mapping
+    from collections.abc import Iterable, Mapping
+    from typing import Callable
 
     from aiohttp import ClientSession
     from typing_extensions import Any, Literal, Self
 
-    from .proxy import Proxy
+    from proxy_scraper_checker.proxy import Proxy
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
 def _get_supported_max_connections() -> int | None:
     if sys.platform == "win32":
-        if isinstance(
-            asyncio.get_event_loop_policy(),
-            asyncio.WindowsSelectorEventLoopPolicy,
-        ):
-            return 512
+        if isinstance(asyncio.get_running_loop(), BaseSelectorEventLoop):
+            # 512 - len(loop._selector.get_map())  # noqa: ERA001
+            return 508
         return None
     import resource  # type: ignore[unreachable, unused-ignore]  # noqa: PLC0415
 
     soft_limit, hard_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
-    logger.debug(
+    _logger.debug(
         "max_connections: soft limit = %d, hard limit = %d, infinity = %d",
         soft_limit,
         hard_limit,
@@ -55,7 +55,7 @@ def _get_supported_max_connections() -> int | None:
         try:
             resource.setrlimit(resource.RLIMIT_NOFILE, (hard_limit, hard_limit))
         except ValueError as e:
-            logger.warning("Failed setting max_connections: %s", e)
+            _logger.warning("Failed setting max_connections: %s", e)
         else:
             soft_limit = hard_limit
     if soft_limit == resource.RLIM_INFINITY:
@@ -69,11 +69,11 @@ def _get_max_connections(value: int, /) -> int | None:
         raise ValueError(msg)
     max_supported = _get_supported_max_connections()
     if not value:
-        logger.info("Using %d as max_connections value", max_supported or 0)
+        _logger.info("Using %d as max_connections value", max_supported or 0)
         return max_supported
     if not max_supported or value <= max_supported:
         return value
-    logger.warning(
+    _logger.warning(
         "max_connections value is too high for your OS. "
         "The config value will be ignored and %d will be used.%s",
         max_supported,
@@ -150,7 +150,7 @@ async def _get_check_website_type_and_real_ip(
             content = await response.read()
         text = get_response_text(response=response, content=content)
     except Exception:
-        logger.exception(
+        _logger.exception(
             "Error when opening check_website without proxy, it will be "
             "impossible to determine anonymity and geolocation of proxies"
         )
@@ -167,7 +167,7 @@ async def _get_check_website_type_and_real_ip(
             return CheckWebsiteType.HTTPBIN_IP, parse_ipv4(js["origin"])
         except (KeyError, TypeError, ValueError):
             pass
-    logger.warning(
+    _logger.warning(
         "Check_website is not httpbin and does not return plain ip, so it will"
         " be impossible to determine the anonymity and geolocation of proxies"
     )
@@ -197,6 +197,9 @@ class Settings:
     )
     output_path: Path = attrs.field(converter=Path)
     output_txt: bool = attrs.field(validator=attrs.validators.instance_of(bool))
+    proxies_per_source_limit: int = attrs.field(
+        validator=attrs.validators.ge(0)
+    )
     real_ip: str | None = attrs.field(
         validator=attrs.validators.optional(attrs.validators.instance_of(str))
     )
@@ -248,7 +251,7 @@ class Settings:
             raise ValueError(msg)
 
         if not self.check_website and self.sort_by_speed:
-            logger.warning(
+            _logger.warning(
                 "Proxy checking is disabled, so sorting by speed is not"
                 " possible. Alphabetical sorting will be used instead."
             )
@@ -256,10 +259,7 @@ class Settings:
 
     @check_website.validator
     def _validate_check_website(
-        self,
-        attribute: attrs.Attribute[str],  # noqa: ARG002
-        value: str,
-        /,
+        self, _attribute: attrs.Attribute[str], value: str, /
     ) -> None:
         if value:
             parsed_url = urlparse(value)
@@ -271,17 +271,14 @@ class Settings:
                 raise ValueError(msg)
 
             if parsed_url.scheme == "http":
-                logger.warning(
+                _logger.warning(
                     "check_website uses the http protocol. "
                     "It is recommended to use https for correct checking."
                 )
 
     @timeout.validator
     def _validate_timeout(
-        self,
-        attribute: attrs.Attribute[str],  # noqa: ARG002
-        value: float,  # noqa: ARG002
-        /,
+        self, _attribute: attrs.Attribute[str], _value: float, /
     ) -> None:
         if self.timeout.total is None or self.timeout.total <= 0:
             msg = "timeout must be positive"
@@ -293,12 +290,14 @@ class Settings:
     ) -> Self:
         output_path = (
             platformdirs.user_data_path("proxy_scraper_checker")
-            if IS_DOCKER
+            if await asyncio.to_thread(is_docker)
             else Path(cfg["output"]["path"])
         )
 
-        output_path_future = fs.async_create_or_fix_dir(
-            output_path, permission=stat.S_IXUSR | stat.S_IWUSR
+        output_path_task = asyncio.create_task(
+            fs.create_or_fix_dir(
+                output_path, permission=stat.S_IXUSR | stat.S_IWUSR
+            )
         )
 
         check_website_type, real_ip = await _get_check_website_type_and_real_ip(
@@ -311,12 +310,12 @@ class Settings:
         )
 
         if enable_geolocation:
-            await fs.async_create_or_fix_dir(
+            await fs.create_or_fix_dir(
                 fs.CACHE_PATH,
                 permission=stat.S_IRUSR | stat.S_IXUSR | stat.S_IWUSR,
             )
 
-        await output_path_future
+        await output_path_task
 
         return cls(
             check_website=cfg["check_website"],
@@ -325,6 +324,7 @@ class Settings:
             output_json=cfg["output"]["json"],
             output_path=output_path,
             output_txt=cfg["output"]["txt"],
+            proxies_per_source_limit=cfg["proxies_per_source_limit"],
             real_ip=real_ip,
             semaphore=cfg["max_connections"],
             sort_by_speed=cfg["sort_by_speed"],

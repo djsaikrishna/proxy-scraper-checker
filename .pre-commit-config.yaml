@@ -4,6 +4,7 @@ repos:
     hooks:
       - id: check-case-conflict
       - id: check-executables-have-shebangs
+      - id: check-illegal-windows-names
       - id: check-merge-conflict
       - id: check-shebang-scripts-are-executable
       - id: check-symlinks
@@ -16,25 +17,26 @@ repos:
         args:
           - --fix=lf
       - id: trailing-whitespace
-  - repo: https://github.com/monosans/pre-commit-prettier
-    rev: v3.3.3
+  - repo: https://github.com/rbubley/mirrors-prettier
+    rev: v3.4.2
     hooks:
       - id: prettier
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.6.9
+    rev: v0.9.4
     hooks:
       - id: ruff
         args:
           - --fix
       - id: ruff-format
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.11.2
+    rev: v1.14.1
     hooks:
       - id: mypy
         args:
           - --scripts-are-modules
         additional_dependencies:
           - aiohttp<4
+          - aiohttp-socks<0.11
           - attrs
           - certifi
           - charset-normalizer<4
@@ -42,7 +44,6 @@ repos:
           - platformdirs<5
           - rich<14
           - tomli<3
-          - types-aiofiles
           - typing-extensions<5
-          - uvloop<0.21; implementation_name=='cpython' and (sys_platform=='darwin' or sys_platform=='linux')
-          - winloop<0.1.7; implementation_name=='cpython' and (sys_platform=='cygwin' or sys_platform=='win32')
+          - uvloop<0.22; implementation_name=='cpython' and (sys_platform=='darwin' or sys_platform=='linux')
+          - winloop<0.1.9; implementation_name=='cpython' and (sys_platform=='cygwin' or sys_platform=='win32')

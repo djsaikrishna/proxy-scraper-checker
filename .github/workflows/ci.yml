@@ -10,23 +10,29 @@ concurrency:
   cancel-in-progress: true
 jobs:
   run-pre-commit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v3
-      - run: uv tool run --from pre-commit@latest --with pre-commit-uv --no-cache --python 3.12 pre-commit run --all-files
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: false
+      - run: uv tool run --from pre-commit@latest --with pre-commit-uv --no-cache --python 3.13 pre-commit run --all-files
   build:
     strategy:
       matrix:
         include:
+          - name: linux-arm64
+            runner: ubuntu-24.04-arm
           - name: linux-x86-64
-            runner: ubuntu-latest
-          - name: windows-x86-64
-            runner: windows-latest
+            runner: ubuntu-24.04
+          - name: macos-arm64
+            runner: macos-15
           - name: macos-x86-64
             runner: macos-13
-          - name: macos-arm64
-            runner: macos-14
+          - name: windows-x86-64
+            runner: windows-2025
       fail-fast: false
     runs-on: ${{ matrix.runner }}
     permissions:
@@ -34,17 +40,15 @@ jobs:
       attestations: write
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v3
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          check-latest: true
-      - run: uv run --extra non-termux --extra nuitka --no-dev --frozen --python 3.12 python -m nuitka --standalone --python-flag='-m' --assume-yes-for-downloads --lto=yes proxy_scraper_checker
+      - run: uv run --no-dev --group nuitka --frozen --python 3.13 python -m nuitka --mode=standalone --python-flag='-m' --assume-yes-for-downloads --deployment --lto=yes proxy_scraper_checker
       - run: mv config.toml proxy_scraper_checker.dist/
       - if: ${{ github.event_name != 'pull_request' }}
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@v2
         with:
           subject-path: proxy_scraper_checker.dist
       - uses: actions/upload-artifact@v4

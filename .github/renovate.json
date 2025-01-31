@@ -12,20 +12,25 @@
   },
   "packageRules": [
     {
-      "matchDepTypes": ["devDependencies"],
-      "automerge": true
-    },
-    {
-      "matchManagers": ["pre-commit"],
-      "automerge": true
-    },
-    {
       "matchUpdateTypes": ["minor"],
       "matchCurrentVersion": "!/^0/",
       "automerge": true
     },
     {
-      "matchUpdateTypes": ["lockFileMaintenance", "patch", "pin"],
+      "matchUpdateTypes": [
+        "lockFileMaintenance",
+        "patch",
+        "replacement",
+        "rollback"
+      ],
+      "automerge": true
+    },
+    {
+      "matchDepTypes": ["devDependencies"],
+      "automerge": true
+    },
+    {
+      "matchManagers": ["pre-commit"],
       "automerge": true
     },
     {
@@ -40,6 +45,7 @@
   "pre-commit": {
     "enabled": true
   },
+  "rollbackPrs": true,
   "semanticCommits": "enabled",
   "schedule": ["at any time"]
 }

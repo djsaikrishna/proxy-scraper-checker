@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import stat
@@ -8,19 +9,18 @@ from typing import TYPE_CHECKING
 
 import maxminddb
 
-from . import fs, sort
-from .geodb import GEODB_PATH
-from .null_context import NullContext
-from .utils import IS_DOCKER, asyncify
+from proxy_scraper_checker import fs, sort
+from proxy_scraper_checker.geodb import GEODB_PATH
+from proxy_scraper_checker.utils import is_docker
 
 if TYPE_CHECKING:
-    from typing import Sequence
+    from collections.abc import Sequence
 
-    from .proxy import Proxy
-    from .settings import Settings
-    from .storage import ProxyStorage
+    from proxy_scraper_checker.proxy import Proxy
+    from proxy_scraper_checker.settings import Settings
+    from proxy_scraper_checker.storage import ProxyStorage
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
 def _create_proxy_list_str(
@@ -34,17 +34,16 @@ def _create_proxy_list_str(
     )
 
 
-@asyncify
-def save_proxies(*, settings: Settings, storage: ProxyStorage) -> None:
+async def save_proxies(*, settings: Settings, storage: ProxyStorage) -> None:
     if settings.output_json:
         if settings.enable_geolocation:
-            fs.add_permission(GEODB_PATH, stat.S_IRUSR)
-            mmdb: maxminddb.Reader | NullContext = maxminddb.open_database(
-                GEODB_PATH
+            await fs.add_permission(GEODB_PATH, stat.S_IRUSR)
+            mmdb: maxminddb.Reader | None = await asyncio.to_thread(
+                maxminddb.open_database, GEODB_PATH
             )
         else:
-            mmdb = NullContext()
-        with mmdb as mmdb_reader:
+            mmdb = None
+        try:
             proxy_dicts = [
                 {
                     "protocol": proxy.protocol.name.lower(),
@@ -56,8 +55,10 @@ def save_proxies(*, settings: Settings, storage: ProxyStorage) -> None:
                     "timeout": round(proxy.timeout, 2)
                     if proxy.timeout is not None
                     else None,
-                    "geolocation": mmdb_reader.get(proxy.exit_ip)
-                    if mmdb_reader is not None and proxy.exit_ip is not None
+                    "geolocation": await asyncio.to_thread(
+                        mmdb.get, proxy.exit_ip
+                    )
+                    if mmdb is not None and proxy.exit_ip is not None
                     else None,
                 }
                 for proxy in sorted(storage, key=sort.timeout_sort_key)
@@ -66,15 +67,18 @@ def save_proxies(*, settings: Settings, storage: ProxyStorage) -> None:
                 (settings.output_path / "proxies.json", None, (",", ":")),
                 (settings.output_path / "proxies_pretty.json", "\t", None),
             ):
-                path.unlink(missing_ok=True)
-                with path.open("w", encoding="utf-8") as f:
-                    json.dump(
-                        proxy_dicts,
-                        f,
-                        ensure_ascii=False,
-                        indent=indent,
-                        separators=separators,
-                    )
+                await asyncio.to_thread(path.unlink, missing_ok=True)
+                f = await asyncio.to_thread(path.open, "w", encoding="utf-8")
+                try:
+                    for chunk in json.JSONEncoder(
+                        ensure_ascii=False, indent=indent, separators=separators
+                    ).iterencode(proxy_dicts):
+                        await asyncio.to_thread(f.write, chunk)
+                finally:
+                    await asyncio.to_thread(f.close)
+        finally:
+            if mmdb is not None:
+                await asyncio.to_thread(mmdb.close)
     if settings.output_txt:
         sorted_proxies = sorted(storage, key=settings.sorting_key)
         grouped_proxies = tuple(
@@ -86,31 +90,36 @@ def save_proxies(*, settings: Settings, storage: ProxyStorage) -> None:
             (settings.output_path / "proxies_anonymous", True),
         ):
             try:
-                rmtree(folder)
+                await asyncio.to_thread(rmtree, folder)
             except FileNotFoundError:
                 pass
-            folder.mkdir()
+            await asyncio.to_thread(folder.mkdir)
             text = _create_proxy_list_str(
                 proxies=sorted_proxies,
                 anonymous_only=anonymous_only,
                 include_protocol=True,
             )
-            (folder / "all.txt").write_text(text, encoding="utf-8")
+            await asyncio.to_thread(
+                (folder / "all.txt").write_text, text, encoding="utf-8"
+            )
             for proto, proxies in grouped_proxies:
                 text = _create_proxy_list_str(
                     proxies=proxies,
                     anonymous_only=anonymous_only,
                     include_protocol=False,
                 )
-                (folder / f"{proto.name.lower()}.txt").write_text(
-                    text, encoding="utf-8"
+                await asyncio.to_thread(
+                    (folder / f"{proto.name.lower()}.txt").write_text,
+                    text,
+                    encoding="utf-8",
                 )
-    if IS_DOCKER:
-        logger.info(
+    if await asyncio.to_thread(is_docker):
+        _logger.info(
             "Proxies have been saved to ./out (%s in container)",
-            settings.output_path.absolute(),
+            await asyncio.to_thread(settings.output_path.absolute),
         )
     else:
-        logger.info(
-            "Proxies have been saved to %s", settings.output_path.absolute()
+        _logger.info(
+            "Proxies have been saved to %s",
+            await asyncio.to_thread(settings.output_path.absolute),
         )

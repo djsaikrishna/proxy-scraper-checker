@@ -7,12 +7,12 @@ name = "proxy-scraper-checker"
 version = "0.0.0"
 license = { text = "MIT" }
 authors = [{ name = "monosans", email = "hsyqixco@protonmail.com" }]
-requires-python = ">=3.8,<4"
+requires-python = ">=3.9,<4"
 classifiers = ["Private :: Do Not Upload"]
 dependencies = [
-  "aiofiles",
+  "aiodns>=1.1,<4",
   "aiohttp>=3.8.6,<4",
-  "aiohttp-socks>=0.7,<0.10",
+  "aiohttp-socks>=0.7,<0.11",
   "attrs>=22.2",
   "brotli>=1,<2; implementation_name=='cpython'",
   "brotlicffi<2; implementation_name!='cpython'",
@@ -22,20 +22,16 @@ dependencies = [
   "platformdirs<5",
   "rich>=12.3,<14",
   "tomli<3; python_version<'3.11'",
-  "winloop<0.1.7; implementation_name=='cpython' and (sys_platform=='cygwin' or sys_platform=='win32')",
+  "uvloop>=0.14,<0.22; implementation_name=='cpython' and (sys_platform=='darwin' or sys_platform=='linux')",
+  "winloop<0.1.9; implementation_name=='cpython' and (sys_platform=='cygwin' or sys_platform=='win32')",
 ]
-optional-dependencies.non-termux = [
-  "aiodns>=1.1,<4",
-  "uvloop>=0.14,<0.21; implementation_name=='cpython' and (sys_platform=='darwin' or sys_platform=='linux')",
-]
-optional-dependencies.nuitka = ["nuitka==2.4.8"]
 urls.repository = "https://github.com/monosans/proxy-scraper-checker"
 
-[tool.uv]
-dev-dependencies = [
-  "mypy==1.11.2",
-  "ruff==0.6.9",
-  "tomli==2.0.2",
-  "types-aiofiles==24.1.0.20240626",
+[dependency-groups]
+dev = [
+  "mypy[faster-cache]==1.14.1",
+  "ruff==0.9.4",
+  "tomli==2.2.1",
   "typing-extensions==4.12.2",
 ]
+nuitka = ["nuitka==2.6.2"]

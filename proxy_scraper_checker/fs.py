@@ -1,28 +1,27 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import TYPE_CHECKING
 
 import platformdirs
 
-from .utils import asyncify
-
 if TYPE_CHECKING:
     from pathlib import Path
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 CACHE_PATH = platformdirs.user_cache_path("proxy_scraper_checker")
 
 
-def add_permission(
+async def add_permission(
     path: Path, permission: int, /, *, missing_ok: bool = False
 ) -> None:
     try:
-        current_permissions = path.stat().st_mode
+        current_permissions = (await asyncio.to_thread(path.stat)).st_mode
         new_permissions = current_permissions | permission
         if current_permissions != new_permissions:
-            path.chmod(new_permissions)
-            logger.info(
+            await asyncio.to_thread(path.chmod, new_permissions)
+            _logger.info(
                 "Changed permissions of %s from %o to %o",
                 path,
                 current_permissions,
@@ -33,17 +32,11 @@ def add_permission(
             raise
 
 
-async_add_permission = asyncify(add_permission)
-
-
-def create_or_fix_dir(path: Path, /, *, permission: int) -> None:
+async def create_or_fix_dir(path: Path, /, *, permission: int) -> None:
     try:
-        path.mkdir(parents=True)
+        await asyncio.to_thread(path.mkdir, parents=True)
     except FileExistsError:
-        if not path.is_dir():
+        if not await asyncio.to_thread(path.is_dir):
             msg = f"{path} is not a directory"
             raise ValueError(msg) from None
-        add_permission(path, permission)
-
-
-async_create_or_fix_dir = asyncify(create_or_fix_dir)
+        await add_permission(path, permission)

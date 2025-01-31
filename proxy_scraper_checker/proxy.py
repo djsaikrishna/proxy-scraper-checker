@@ -9,20 +9,20 @@ import attrs
 from aiohttp import ClientSession
 from aiohttp_socks import ProxyConnector
 
-from .http import (
+from proxy_scraper_checker.http import (
     HEADERS,
     SSL_CONTEXT,
     fallback_charset_resolver,
     get_cookie_jar,
     get_response_text,
 )
-from .parsers import parse_ipv4
-from .settings import CheckWebsiteType
+from proxy_scraper_checker.parsers import parse_ipv4
+from proxy_scraper_checker.settings import CheckWebsiteType
 
 if TYPE_CHECKING:
     from aiohttp_socks import ProxyType
 
-    from .settings import Settings
+    from proxy_scraper_checker.settings import Settings
 
 
 @attrs.define(
@@ -57,17 +57,20 @@ class Proxy:
                 password=self.password,
                 ssl=SSL_CONTEXT,
             )
-            async with ClientSession(
-                connector=connector,
-                headers=HEADERS,
-                cookie_jar=get_cookie_jar(),
-                raise_for_status=True,
-                timeout=settings.timeout,
-                fallback_charset_resolver=fallback_charset_resolver,
-            ) as session, session.get(
-                settings.check_website,
-                headers=settings.check_website_type.headers,
-            ) as response:
+            async with (
+                ClientSession(
+                    connector=connector,
+                    headers=HEADERS,
+                    cookie_jar=get_cookie_jar(),
+                    raise_for_status=True,
+                    timeout=settings.timeout,
+                    fallback_charset_resolver=fallback_charset_resolver,
+                ) as session,
+                session.get(
+                    settings.check_website,
+                    headers=settings.check_website_type.headers,
+                ) as response,
+            ):
                 content = await response.read()
         self.timeout = perf_counter() - start
         if settings.check_website_type == CheckWebsiteType.HTTPBIN_IP:
