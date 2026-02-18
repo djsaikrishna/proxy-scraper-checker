@@ -1,6 +1,6 @@
 use std::{
     cmp::Ordering,
-    io::{self},
+    io,
     net::{IpAddr, Ipv4Addr},
     path::Path,
     sync::Arc,
@@ -8,6 +8,7 @@ use std::{
 };
 
 use color_eyre::eyre::WrapErr as _;
+use serde::Serialize as _;
 use tokio::io::AsyncWriteExt as _;
 
 use crate::{
@@ -36,6 +37,44 @@ fn compare_natural(a: &Proxy, b: &Proxy) -> Ordering {
         .then_with(move || a.port.cmp(&b.port))
 }
 
+fn strip_non_english_names(v: &mut serde_json::Value) {
+    if let serde_json::Value::Object(map) = v {
+        if let Some(names_val) = map.get_mut("names") {
+            if let serde_json::Value::Object(names_map) = names_val {
+                if let Some(en_val) = names_map.get("en").cloned() {
+                    names_map.clear();
+                    names_map.insert("en".to_owned(), en_val);
+                } else {
+                    names_map.clear();
+                }
+            }
+        } else {
+            for (_, val) in map {
+                strip_non_english_names(val);
+            }
+        }
+    } else if let serde_json::Value::Array(arr) = v {
+        for item in arr {
+            strip_non_english_names(item);
+        }
+    }
+}
+
+#[expect(clippy::ref_option)]
+fn serialize_opt_strip_names<T: serde::Serialize, S: serde::Serializer>(
+    opt: &Option<T>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    if let Some(t) = opt {
+        let mut v =
+            serde_json::to_value(t).map_err(serde::ser::Error::custom)?;
+        strip_non_english_names(&mut v);
+        v.serialize(serializer)
+    } else {
+        serializer.serialize_none()
+    }
+}
+
 #[derive(serde::Serialize)]
 struct ProxyJson<'a> {
     protocol: ProxyType,
@@ -45,7 +84,9 @@ struct ProxyJson<'a> {
     port: u16,
     timeout: Option<f64>,
     exit_ip: Option<&'a str>,
+    #[serde(serialize_with = "serialize_opt_strip_names")]
     asn: Option<maxminddb::geoip2::Asn<'a>>,
+    #[serde(serialize_with = "serialize_opt_strip_names")]
     geolocation: Option<maxminddb::geoip2::City<'a>>,
 }
 
