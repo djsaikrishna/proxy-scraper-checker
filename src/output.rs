@@ -97,8 +97,8 @@ fn group_proxies<'a>(
     let mut groups: HashMap<_, _> =
         config.enabled_protocols().copied().map(|p| (p, Vec::new())).collect();
     for proxy in proxies {
-        if let Some(proxies) = groups.get_mut(&proxy.protocol) {
-            proxies.push(proxy);
+        if let Some(group) = groups.get_mut(&proxy.protocol) {
+            group.push(proxy);
         }
     }
     groups

@@ -12,7 +12,7 @@ Collect, test, and organize HTTP/SOCKS4/SOCKS5 proxies from multiple sources wit
 
 - **🔥 Blazing Performance** - Rust-powered async engine with configurable concurrency
 - **🌍 Rich Metadata** - ASN, country/city geolocation, and response time data via offline MaxMind databases
-- **🎯 Smart Parsing** - Advanced regex engine extracts proxies from any format (`protocol://user:pass@host:port`)
+- **🎯 Smart Parsing** - Advanced regex engine extracts proxies from any format (`protocol://user:pass@host:port`). Also supports CIDR notation (e.g. `192.168.0.0/24`), automatically expanding ranges into individual hosts.
 - **🔐 Auth Support** - Handles username/password authentication seamlessly
 - **📊 Interactive TUI** - Real-time progress monitoring with beautiful terminal interface
 - **⚡ Flexible Output** - JSON (with metadata) and plain text formats

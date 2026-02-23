@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use color_eyre::eyre::{OptionExt as _, WrapErr as _};
+use compact_str::ToCompactString as _;
 use foldhash::HashSetExt as _;
 
 #[cfg(feature = "tui")]
@@ -170,23 +171,48 @@ async fn scrape_one(
             #[cfg(feature = "tui")]
             seen_protocols.insert(protocol);
 
-            new_proxies.insert(Proxy {
-                protocol,
-                host: capture
-                    .name("host")
-                    .ok_or_eyre("failed to match \"host\" regex capture group")?
-                    .as_str()
-                    .into(),
-                port: capture
-                    .name("port")
-                    .ok_or_eyre("failed to match \"port\" regex capture group")?
-                    .as_str()
-                    .parse()?,
-                username: capture.name("username").map(|m| m.as_str().into()),
-                password: capture.name("password").map(|m| m.as_str().into()),
-                timeout: None,
-                exit_ip: None,
-            });
+            let host_str = capture
+                .name("host")
+                .ok_or_eyre("failed to match \"host\" regex capture group")?
+                .as_str();
+            let port = capture
+                .name("port")
+                .ok_or_eyre("failed to match \"port\" regex capture group")?
+                .as_str()
+                .parse()?;
+            let username = capture.name("username").map(|m| m.as_str().into());
+            let password = capture.name("password").map(|m| m.as_str().into());
+
+            if let Ok(ipv4_net) = capture
+                .name("host_cidr")
+                .ok_or_eyre(
+                    "failed to match \"host_cidr\" regex capture group",
+                )?
+                .as_str()
+                .parse::<ipnet::Ipv4Net>()
+            {
+                new_proxies.extend(ipv4_net.hosts().map(move |host_ip| {
+                    Proxy {
+                        protocol,
+                        host: host_ip.to_compact_string(),
+                        port,
+                        username: username.clone(),
+                        password: password.clone(),
+                        timeout: None,
+                        exit_ip: None,
+                    }
+                }));
+            } else {
+                new_proxies.insert(Proxy {
+                    protocol,
+                    host: host_str.into(),
+                    port,
+                    username,
+                    password,
+                    timeout: None,
+                    exit_ip: None,
+                });
+            }
         }
     }
 
