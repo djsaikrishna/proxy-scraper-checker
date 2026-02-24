@@ -171,10 +171,6 @@ async fn scrape_one(
             #[cfg(feature = "tui")]
             seen_protocols.insert(protocol);
 
-            let host_str = capture
-                .name("host")
-                .ok_or_eyre("failed to match \"host\" regex capture group")?
-                .as_str();
             let port = capture
                 .name("port")
                 .ok_or_eyre("failed to match \"port\" regex capture group")?
@@ -205,7 +201,13 @@ async fn scrape_one(
             } else {
                 new_proxies.insert(Proxy {
                     protocol,
-                    host: host_str.into(),
+                    host: capture
+                        .name("host")
+                        .ok_or_eyre(
+                            "failed to match \"host\" regex capture group",
+                        )?
+                        .as_str()
+                        .into(),
                     port,
                     username,
                     password,
