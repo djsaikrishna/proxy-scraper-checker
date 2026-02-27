@@ -1,24 +1,29 @@
+#:schema ./config-schema.json
+
 # Enable debug logging to see detailed checking process for each proxy
 # Warning: Extremely verbose - logs every connection attempt and failure
 debug = false
 
+[output]
+# Output directory (Docker overrides this to /app/out via volume mount)
+path = "./out"
+# Sort proxies by response time (true) or by IP address (false)
+# Speed sorting: fastest proxies first. IP sorting: natural order by protocol, then IP, then port.
+sort_by_speed = true
 
-[scraping]
-# Maximum proxies to collect per source (0 = unlimited)
-# When this limit is reached, the source is skipped with a warning to prevent memory issues
-max_proxies_per_source = 100000
+# Plain text output (.txt files)
+[output.txt]
+enabled = true
 
-# Request timeout for fetching proxy sources (seconds)
-# Higher values allow slower sources to complete but increase total scraping time
-timeout = 10.0
-connect_timeout = 5.0
-
-# HTTP(S), SOCKS4, or SOCKS5 proxy used for fetching sources (e.g., "socks5://user:pass@host:port"). Leave empty to disable.
-proxy = ""
-
-# User-Agent header for scraping requests
-user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
-
+# JSON output with metadata (.json files)
+[output.json]
+enabled = true
+# Add ASN (network provider) info to JSON output
+# Uses offline MaxMind database
+include_asn = true
+# Add geolocation (country/city) data to JSON output
+# Uses offline MaxMind GeoLite2 City database
+include_geolocation = true
 
 [checking]
 # URL for checking proxy functionality
@@ -30,47 +35,29 @@ user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 #   "https://google.com"     - Basic connect/read check only
 #   ""                       - Skip checking entirely (scrape only)
 check_url = "https://api.ipify.org"
-
 # Number of proxies to check simultaneously
 # Higher values = faster checking but more RAM/network usage. Lower if you experience crashes or timeouts.
 max_concurrent_checks = 512
-
 # Proxy response timeout (seconds)
 # Higher = finds more slow proxies but takes longer
 # Lower = faster checking but discards slow proxies
 timeout = 10.0
 connect_timeout = 5.0
-
 # User-Agent header for proxy check requests
 user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
 
-
-[output]
-# Output directory (Docker overrides this to /app/out via volume mount)
-path = "./out"
-
-# Sort proxies by response time (true) or by IP address (false)
-# Speed sorting: fastest proxies first. IP sorting: natural order by protocol, then IP, then port.
-sort_by_speed = true
-
-
-# Plain text output (.txt files)
-[output.txt]
-enabled = true
-
-
-# JSON output with metadata (.json files)
-[output.json]
-enabled = true
-
-# Add ASN (network provider) info to JSON output
-# Uses offline MaxMind database
-include_asn = true
-
-# Add geolocation (country/city) data to JSON output
-# Uses offline MaxMind GeoLite2 City database
-include_geolocation = true
-
+[scraping]
+# Maximum proxies to collect per source (0 = unlimited)
+# When this limit is reached, the source is skipped with a warning to prevent memory issues
+max_proxies_per_source = 100000
+# Request timeout for fetching proxy sources (seconds)
+# Higher values allow slower sources to complete but increase total scraping time
+timeout = 10.0
+connect_timeout = 5.0
+# HTTP(S), SOCKS4, or SOCKS5 proxy used for fetching sources (e.g., "socks5://user:pass@host:port"). Leave empty to disable.
+proxy = ""
+# User-Agent header for scraping requests
+user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
 
 # Proxy sources configuration
 # Add local files: ["./my_proxies.txt"] or URLs
@@ -93,11 +80,11 @@ urls = [
 
   "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=http",
   "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=https",
+  "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/refs/heads/master/http.txt",
   "https://raw.githubusercontent.com/proxifly/free-proxy-list/refs/heads/main/proxies/protocols/http/data.txt",
   "https://raw.githubusercontent.com/proxifly/free-proxy-list/refs/heads/main/proxies/protocols/https/data.txt",
   "https://raw.githubusercontent.com/roosterkid/openproxylist/refs/heads/main/HTTPS_RAW.txt",
   "https://raw.githubusercontent.com/sunny9577/proxy-scraper/refs/heads/master/generated/http_proxies.txt",
-  "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/refs/heads/master/http.txt",
 ]
 
 [scraping.socks4]
@@ -116,10 +103,10 @@ urls = [
   # { url = "https://some.api/endpoint", headers = { Authorization = "Bearer YOUR_API_KEY" } },
 
   "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=socks4",
+  "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/refs/heads/master/socks4.txt",
   "https://raw.githubusercontent.com/proxifly/free-proxy-list/refs/heads/main/proxies/protocols/socks4/data.txt",
   "https://raw.githubusercontent.com/roosterkid/openproxylist/refs/heads/main/SOCKS4_RAW.txt",
   "https://raw.githubusercontent.com/sunny9577/proxy-scraper/refs/heads/master/generated/socks4_proxies.txt",
-  "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/refs/heads/master/socks4.txt",
 ]
 
 [scraping.socks5]
@@ -138,9 +125,9 @@ urls = [
   # { url = "https://some.api/endpoint", headers = { Authorization = "Bearer YOUR_API_KEY" } },
 
   "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=socks5",
+  "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/refs/heads/master/socks5.txt",
   "https://raw.githubusercontent.com/hookzof/socks5_list/refs/heads/master/proxy.txt",
   "https://raw.githubusercontent.com/proxifly/free-proxy-list/refs/heads/main/proxies/protocols/socks5/data.txt",
   "https://raw.githubusercontent.com/roosterkid/openproxylist/refs/heads/main/SOCKS5_RAW.txt",
   "https://raw.githubusercontent.com/sunny9577/proxy-scraper/refs/heads/master/generated/socks5_proxies.txt",
-  "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/refs/heads/master/socks5.txt",
 ]
