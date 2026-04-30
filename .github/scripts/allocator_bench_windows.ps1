@@ -27,6 +27,7 @@ function Run-One([string]$allocator, [string]$features) {
 
   $exe = "target\\release\\proxy-scraper-checker.exe"
   $peak = 0
+  $faults = 0
   $proc = Start-Process -FilePath $exe -PassThru -NoNewWindow
   while (-not $proc.HasExited) {
     Start-Sleep -Milliseconds 200
@@ -34,10 +35,11 @@ function Run-One([string]$allocator, [string]$features) {
       $p = Get-Process -Id $proc.Id -ErrorAction Stop
       $current = [math]::Max($p.WorkingSet64, $p.PeakWorkingSet64)
       if ($current -gt $peak) { $peak = $current }
+      if ($p.PageFaults -gt $faults) { $faults = $p.PageFaults }
     } catch { }
   }
   $peakKb = [math]::Floor($peak / 1kb)
-  Add-Content -Path results.tsv -Value "$allocator`t$peakKb`t0`t0"
+  Add-Content -Path results.tsv -Value "$allocator`t$peakKb`t$faults"
 }
 
 if (Test-Path results.tsv) { Remove-Item results.tsv -Force }
@@ -51,21 +53,20 @@ $rows = Get-Content results.tsv | ForEach-Object {
   [pscustomobject]@{
     Allocator = $parts[0]
     PeakKB = [int]$parts[1]
-    MajorPF = [int]$parts[2]
-    MinorPF = [int]$parts[3]
+    PageFaults = [int]$parts[2]
   }
 }
-$sorted = $rows | Sort-Object PeakKB, MajorPF, MinorPF
+$sorted = $rows | Sort-Object PeakKB, PageFaults
 $best = $sorted | Select-Object -First 1
 
 $summary = @()
 $summary += "### $($env:PLATFORM_LABEL) (tokio-multi-thread=$tokioOn)"
 $summary += ""
-$summary += "| Allocator | Peak KB | Major PF | Minor PF |"
-$summary += "| --- | ---: | ---: | ---: |"
+$summary += "| Allocator | Peak KB | Page Faults |"
+$summary += "| --- | ---: | ---: |"
 foreach ($row in $sorted) {
-  $summary += "| $($row.Allocator) | $($row.PeakKB) | $($row.MajorPF) | $($row.MinorPF) |"
+  $summary += "| $($row.Allocator) | $($row.PeakKB) | $($row.PageFaults) |"
 }
 $summary += ""
-$summary += "**Best:** $($best.Allocator) ($($best.PeakKB) KB, $($best.MajorPF) major PF, $($best.MinorPF) minor PF)"
+$summary += "**Best:** $($best.Allocator) ($($best.PeakKB) KB, $($best.PageFaults) page faults)"
 $summary -join "`n" | Add-Content $env:GITHUB_STEP_SUMMARY
