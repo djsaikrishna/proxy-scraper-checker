@@ -29,7 +29,9 @@ function Run-One([string]$allocator, [string]$features) {
       $p = Get-Process -Id $proc.Id -ErrorAction Stop
       $current = [math]::Max($p.WorkingSet64, $p.PeakWorkingSet64)
       if ($current -gt $peak) { $peak = $current }
-      if ($p.PageFaults -gt $faults) { $faults = $p.PageFaults }
+      
+      $wmi = Get-CimInstance Win32_Process -Filter "ProcessId=$($proc.Id)" -ErrorAction SilentlyContinue
+      if ($wmi -and $wmi.PageFaults -gt $faults) { $faults = $wmi.PageFaults }
     } catch { }
   }
 
