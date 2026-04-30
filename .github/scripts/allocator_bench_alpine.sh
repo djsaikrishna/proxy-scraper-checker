@@ -10,46 +10,39 @@ ALPINE_SCRIPT=$(cat <<'INNER_EOF'
 set -eu
 apk add --no-cache build-base pkgconfig time rust cargo
 
-build_features() {
-  allocator="$1"
-  features=""
-  if [ "$allocator" != "system" ]; then
-    features="$allocator"
+features=""
+if [ "$ALLOCATOR" != "system" ]; then
+  features="$ALLOCATOR"
+fi
+if [ -n "$TOKIO_FEATURE" ]; then
+  if [ -n "$features" ]; then
+    features="$features,$TOKIO_FEATURE"
+  else
+    features="$TOKIO_FEATURE"
   fi
-  if [ -n "$TOKIO_FEATURE" ]; then
-    if [ -n "$features" ]; then
-      features="$features,$TOKIO_FEATURE"
-    else
-      features="$TOKIO_FEATURE"
-    fi
-  fi
-  echo "$features"
-}
+fi
 
 : > /work/alpine-results.tsv
-for allocator in system jemalloc mimalloc_v2 mimalloc_v3; do
-  features="$(build_features "$allocator")"
-  if [ -n "$features" ]; then
-    cargo build --release --locked --features "$features"
-  else
-    cargo build --release --locked
-  fi
+if [ -n "$features" ]; then
+  cargo build --release --locked --features "$features"
+else
+  cargo build --release --locked
+fi
 
-  output="$(/usr/bin/time -v /work/target/release/proxy-scraper-checker 2>&1 >/dev/null)"
+output="$(/usr/bin/time -v /work/target/release/proxy-scraper-checker 2>&1 >/dev/null)"
 
-  peak="$(echo "$output" | awk -F': ' '/Maximum resident set size/ {print $2; exit}')"
-  major="$(echo "$output" | awk -F': ' '/Major \(requiring I\/O\) page faults/ {print $2; exit}')"
-  minor="$(echo "$output" | awk -F': ' '/Minor \(reclaiming a frame\) page faults/ {print $2; exit}')"
+peak="$(echo "$output" | awk -F': ' '/Maximum resident set size/ {print $2; exit}')"
+major="$(echo "$output" | awk -F': ' '/Major \(requiring I\/O\) page faults/ {print $2; exit}')"
+minor="$(echo "$output" | awk -F': ' '/Minor \(reclaiming a frame\) page faults/ {print $2; exit}')"
 
-  if [ -z "$peak" ]; then
-    echo "Failed to parse peak memory for $allocator" >&2
-    exit 1
-  fi
-  major="${major:-0}"
-  minor="${minor:-0}"
+if [ -z "$peak" ]; then
+  echo "Failed to parse peak memory for $ALLOCATOR" >&2
+  exit 1
+fi
+major="${major:-0}"
+minor="${minor:-0}"
 
-  printf "%s\t%s\t%s\t%s\n" "$allocator" "$peak" "$major" "$minor" >> /work/alpine-results.tsv
-done
+printf "%s\t%s\t%s\t%s\n" "$ALLOCATOR" "$peak" "$major" "$minor" >> /work/alpine-results.tsv
 INNER_EOF
 )
 
@@ -58,10 +51,11 @@ docker run --rm \
   -w /work \
   -e TOKIO_FEATURE="$TOKIO_FEATURE" \
   -e PLATFORM_LABEL="${PLATFORM_LABEL:-unknown}" \
+  -e ALLOCATOR="$ALLOCATOR" \
   rust:alpine sh -lc "$ALPINE_SCRIPT"
 
 {
-  echo "### ${PLATFORM_LABEL:-unknown} (tokio-multi-thread=${TOKIO_MULTI_THREAD:-false})"
+  echo "### ${PLATFORM_LABEL:-unknown} (tokio-multi-thread=${TOKIO_MULTI_THREAD:-false}, allocator=${ALLOCATOR})"
   echo "Threads: $(nproc --all)"
   echo ""
   echo "| Allocator | Peak KB | Major PF | Minor PF |"

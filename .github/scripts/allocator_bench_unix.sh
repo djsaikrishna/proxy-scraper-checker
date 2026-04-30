@@ -6,88 +6,65 @@ if [[ "${TOKIO_MULTI_THREAD:-false}" == "true" ]]; then
   TOKIO_FEATURE="tokio-multi-thread"
 fi
 
-allocators=(system jemalloc mimalloc_v2 mimalloc_v3)
-
 if [[ "$RUNNER_OS" == "Linux" ]]; then
   time_cmd=(/usr/bin/time -v)
-  parse_peak() { awk -F': ' '/Maximum resident set size/ {print $2; exit}'; }
-  parse_major() { awk -F': ' '/Major \(requiring I\/O\) page faults/ {print $2; exit}'; }
-  parse_minor() { awk -F': ' '/Minor \(reclaiming a frame\) page faults/ {print $2; exit}'; }
 else
   time_cmd=(/usr/bin/time -l)
-  parse_peak() { awk '/maximum resident set size/ {print $1; exit}'; }
-  parse_major() { awk '/page faults/ {print $1; exit}'; }
-  parse_minor() { awk '/page reclaims/ {print $1; exit}'; }
 fi
 
-build_features() {
-  local allocator="$1"
-  local features=""
-  if [[ "$allocator" != "system" ]]; then
-    features="$allocator"
-  fi
-  if [[ -n "$TOKIO_FEATURE" ]]; then
-    if [[ -n "$features" ]]; then
-      features="$features,$TOKIO_FEATURE"
-    else
-      features="$TOKIO_FEATURE"
-    fi
-  fi
-  echo "$features"
-}
-
-run_one() {
-  local allocator="$1"
-  local features
-  features="$(build_features "$allocator")"
-
-  local feature_args=()
+allocator="$ALLOCATOR"
+features=""
+if [[ "$allocator" != "system" ]]; then
+  features="$allocator"
+fi
+if [[ -n "$TOKIO_FEATURE" ]]; then
   if [[ -n "$features" ]]; then
-    feature_args=(--features "$features")
+    features="$features,$TOKIO_FEATURE"
+  else
+    features="$TOKIO_FEATURE"
   fi
+fi
 
-  cargo build --release --locked "${feature_args[@]}"
+feature_args=()
+if [[ -n "$features" ]]; then
+  feature_args=(--features "$features")
+fi
 
-  local exe="target/release/proxy-scraper-checker"
-  if [[ "$RUNNER_OS" == "Windows" ]]; then
-    exe="target/release/proxy-scraper-checker.exe"
-  fi
+cargo build --release --locked "${feature_args[@]}"
 
-  local output
-  output="$(${time_cmd[@]} "$exe" 2>&1 >/dev/null)"
-
-  local peak
-  peak="$(echo "$output" | parse_peak)"
-  local major
-  major="$(echo "$output" | parse_major)"
-  local minor
-  minor="$(echo "$output" | parse_minor)"
-
-  if [[ -z "$peak" ]]; then
-    echo "Failed to parse peak memory for $allocator" >&2
-    exit 1
-  fi
-  major="${major:-0}"
-  minor="${minor:-0}"
-
-  if [[ "$RUNNER_OS" != "Linux" ]]; then
-    peak=$((peak / 1024))
-  fi
-
-  printf "%s\t%s\t%s\t%s\n" "$allocator" "$peak" "$major" "$minor" >> results.tsv
-}
-
+exe="target/release/proxy-scraper-checker"
 if [[ "$RUNNER_OS" == "Windows" ]]; then
-  allocators=(system mimalloc_v2 mimalloc_v3)
+  exe="target/release/proxy-scraper-checker.exe"
+fi
+
+output="$(${time_cmd[@]} "$exe" 2>&1 >/dev/null)"
+
+if [[ "$RUNNER_OS" == "Linux" ]]; then
+  peak="$(echo "$output" | awk -F': ' '/Maximum resident set size/ {print $2; exit}')"
+  major="$(echo "$output" | awk -F': ' '/Major \(requiring I\/O\) page faults/ {print $2; exit}')"
+  minor="$(echo "$output" | awk -F': ' '/Minor \(reclaiming a frame\) page faults/ {print $2; exit}')"
+else
+  peak="$(echo "$output" | awk '/maximum resident set size/ {print $1; exit}')"
+  major="$(echo "$output" | awk '/page faults/ {print $1; exit}')"
+  minor="$(echo "$output" | awk '/page reclaims/ {print $1; exit}')"
+fi
+
+if [[ -z "$peak" ]]; then
+  echo "Failed to parse peak memory for $allocator" >&2
+  exit 1
+fi
+major="${major:-0}"
+minor="${minor:-0}"
+
+if [[ "$RUNNER_OS" != "Linux" ]]; then
+  peak=$((peak / 1024))
 fi
 
 : > results.tsv
-for allocator in "${allocators[@]}"; do
-  run_one "$allocator"
-done
+printf "%s\t%s\t%s\t%s\n" "$allocator" "$peak" "$major" "$minor" >> results.tsv
 
 {
-  echo "### ${PLATFORM_LABEL:-unknown} (tokio-multi-thread=${TOKIO_MULTI_THREAD:-false})"
+  echo "### ${PLATFORM_LABEL:-unknown} (tokio-multi-thread=${TOKIO_MULTI_THREAD:-false}, allocator=${ALLOCATOR})"
   if [[ "$RUNNER_OS" == "Linux" ]]; then
     echo "Threads: $(nproc --all)"
   elif [[ "$RUNNER_OS" == "macOS" ]]; then

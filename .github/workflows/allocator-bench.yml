@@ -8,11 +8,16 @@ permissions:
   contents: read
 jobs:
   bench:
-    name: ${{ matrix.platform }} (tokio-multi-thread=${{ matrix.tokio_multi_thread }})
+    name: ${{ matrix.platform }} (tokio-multi-thread=${{ matrix.tokio_multi_thread }}, ${{ matrix.allocator }})
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
+        allocator:
+          - system
+          - jemalloc
+          - mimalloc_v2
+          - mimalloc_v3
         tokio_multi_thread: [true, false]
         platform:
           - ubuntu-24.04-arm
@@ -48,6 +53,11 @@ jobs:
           - platform: alpine-arm
             runner: ubuntu-24.04-arm
             alpine: true
+        exclude:
+          - platform: windows-2025
+            allocator: jemalloc
+          - platform: windows-11-arm
+            allocator: jemalloc
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -57,22 +67,25 @@ jobs:
         with:
           toolchain: beta
           cache: true
-          cache-key: allocator-bench-${{ matrix.runner }}
+          cache-key: allocator-bench-${{ matrix.runner }}-${{ matrix.allocator }}
       - if: ${{ !matrix.alpine && runner.os != 'Windows' }}
         shell: bash
         env:
+          ALLOCATOR: ${{ matrix.allocator }}
           TOKIO_MULTI_THREAD: ${{ matrix.tokio_multi_thread }}
           PLATFORM_LABEL: ${{ matrix.platform }}
         run: bash .github/scripts/allocator_bench_unix.sh
       - if: ${{ !matrix.alpine && runner.os == 'Windows' }}
         shell: pwsh
         env:
+          ALLOCATOR: ${{ matrix.allocator }}
           TOKIO_MULTI_THREAD: ${{ matrix.tokio_multi_thread }}
           PLATFORM_LABEL: ${{ matrix.platform }}
         run: ./.github/scripts/allocator_bench_windows.ps1
       - if: ${{ matrix.alpine }}
         shell: bash
         env:
+          ALLOCATOR: ${{ matrix.allocator }}
           TOKIO_MULTI_THREAD: ${{ matrix.tokio_multi_thread }}
           PLATFORM_LABEL: ${{ matrix.platform }}
         run: bash .github/scripts/allocator_bench_alpine.sh
