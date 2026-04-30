@@ -34,9 +34,9 @@ for allocator in system jemalloc mimalloc_v2 mimalloc_v3; do
   else
     cargo build --release --locked
   fi
-  
+
   output="$(/usr/bin/time -v /work/target/release/proxy-scraper-checker 2>&1 >/dev/null)"
-  
+
   peak="$(echo "$output" | awk -F': ' '/Maximum resident set size/ {print $2; exit}')"
   major="$(echo "$output" | awk -F': ' '/Major \(requiring I\/O\) page faults/ {print $2; exit}')"
   minor="$(echo "$output" | awk -F': ' '/Minor \(reclaiming a frame\) page faults/ {print $2; exit}')"

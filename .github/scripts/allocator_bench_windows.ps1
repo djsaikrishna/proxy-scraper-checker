@@ -13,16 +13,16 @@ function Build-Features([string]$allocator, [string]$tokio) {
 function Run-One([string]$allocator, [string]$features) {
   $args = @("build", "--release", "--locked")
   if ($features) { $args += "--features"; $args += $features }
-  
+
   $proc = Start-Process -FilePath "cargo" -ArgumentList $args -PassThru -NoNewWindow -Wait
 
   $exe = "target\release\proxy-scraper-checker.exe"
-  
+
   $proc = Start-Process -FilePath $exe -PassThru -NoNewWindow
-  
+
   $peak = 0
   $faults = 0
-  
+
   while (-not $proc.HasExited) {
     Start-Sleep -Milliseconds 100
     try {
