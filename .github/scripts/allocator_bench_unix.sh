@@ -10,26 +10,14 @@ allocators=(system jemalloc mimalloc_v2 mimalloc_v3)
 
 if [[ "$RUNNER_OS" == "Linux" ]]; then
   time_cmd=(/usr/bin/time -v)
-  parse_peak() {
-    awk -F': ' '/Maximum resident set size/ {print $2; exit}'
-  }
-  parse_major() {
-    awk -F': ' '/Major \(requiring I\/O\) page faults/ {print $2; exit}'
-  }
-  parse_minor() {
-    awk -F': ' '/Minor \(reclaiming a frame\) page faults/ {print $2; exit}'
-  }
+  parse_peak() { awk -F': ' '/Maximum resident set size/ {print $2; exit}'; }
+  parse_major() { awk -F': ' '/Major \(requiring I\/O\) page faults/ {print $2; exit}'; }
+  parse_minor() { awk -F': ' '/Minor \(reclaiming a frame\) page faults/ {print $2; exit}'; }
 else
   time_cmd=(/usr/bin/time -l)
-  parse_peak() {
-    awk '/maximum resident set size/ {print $1; exit}'
-  }
-  parse_major() {
-    awk '/page faults/ {print $1; exit}'
-  }
-  parse_minor() {
-    awk '/page reclaims/ {print $1; exit}'
-  }
+  parse_peak() { awk '/maximum resident set size/ {print $1; exit}'; }
+  parse_major() { awk '/page faults/ {print $1; exit}'; }
+  parse_minor() { awk '/page reclaims/ {print $1; exit}'; }
 fi
 
 build_features() {
@@ -74,16 +62,13 @@ run_one() {
   major="$(echo "$output" | parse_major)"
   local minor
   minor="$(echo "$output" | parse_minor)"
+
   if [[ -z "$peak" ]]; then
     echo "Failed to parse peak memory for $allocator" >&2
     exit 1
   fi
-  if [[ -z "$major" ]]; then
-    major=0
-  fi
-  if [[ -z "$minor" ]]; then
-    minor=0
-  fi
+  major="${major:-0}"
+  minor="${minor:-0}"
 
   if [[ "$RUNNER_OS" != "Linux" ]]; then
     peak=$((peak / 1024))
@@ -106,16 +91,8 @@ done
   echo ""
   echo "| Allocator | Peak KB | Major PF | Minor PF |"
   echo "| --- | ---: | ---: | ---: |"
-  sort -n -k2,2 -k3,3 -k4,4 results.tsv | while IFS=$'\t' read -r allocator peak major minor; do
+  while IFS=$'\t' read -r allocator peak major minor; do
     echo "| $allocator | $peak | $major | $minor |"
-  done
-  best="$(sort -n -k2,2 -k3,3 -k4,4 results.tsv | head -n1)"
-  best_allocator="${best%%$'\t'*}"
-  best_rest="${best#*$'\t'}"
-  best_peak="${best_rest%%$'\t'*}"
-  best_rest="${best_rest#*$'\t'}"
-  best_major="${best_rest%%$'\t'*}"
-  best_minor="${best_rest#*$'\t'}"
+  done < results.tsv
   echo ""
-  echo "**Best:** $best_allocator ($best_peak KB, $best_major major PF, $best_minor minor PF)"
 } >> "$GITHUB_STEP_SUMMARY"
