@@ -47,6 +47,7 @@ foreach ($allocator in $allocators) {
 
 $summary = @()
 $summary += "### $($env:PLATFORM_LABEL) (tokio-multi-thread=$tokioOn)"
+$summary += "Threads: $($env:NUMBER_OF_PROCESSORS)"
 $summary += ""
 $summary += "| Allocator | Peak KB | Page Faults |"
 $summary += "| --- | ---: | ---: |"

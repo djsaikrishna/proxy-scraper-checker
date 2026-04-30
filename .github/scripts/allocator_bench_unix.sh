@@ -88,6 +88,13 @@ done
 
 {
   echo "### ${PLATFORM_LABEL:-unknown} (tokio-multi-thread=${TOKIO_MULTI_THREAD:-false})"
+  if [[ "$RUNNER_OS" == "Linux" ]]; then
+    echo "Threads: $(nproc --all)"
+  elif [[ "$RUNNER_OS" == "macOS" ]]; then
+    echo "Threads: $(sysctl -n hw.logicalcpu)"
+  elif [[ "$RUNNER_OS" == "Windows" ]]; then
+    echo "Threads: $NUMBER_OF_PROCESSORS"
+  fi
   echo ""
   echo "| Allocator | Peak KB | Major PF | Minor PF |"
   echo "| --- | ---: | ---: | ---: |"

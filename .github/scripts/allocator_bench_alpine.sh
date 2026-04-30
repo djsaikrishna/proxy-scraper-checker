@@ -62,6 +62,7 @@ docker run --rm \
 
 {
   echo "### ${PLATFORM_LABEL:-unknown} (tokio-multi-thread=${TOKIO_MULTI_THREAD:-false})"
+  echo "Threads: $(nproc --all)"
   echo ""
   echo "| Allocator | Peak KB | Major PF | Minor PF |"
   echo "| --- | ---: | ---: | ---: |"
