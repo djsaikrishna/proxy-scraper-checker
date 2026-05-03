@@ -30,7 +30,7 @@ if [[ -n "$features" ]]; then
   feature_args=(--features "$features")
 fi
 
-cargo build --release --locked "${feature_args[@]}"
+cargo build --no-default-features --release --locked "${feature_args[@]}"
 
 exe="target/release/proxy-scraper-checker"
 if [[ "$RUNNER_OS" == "Windows" ]]; then

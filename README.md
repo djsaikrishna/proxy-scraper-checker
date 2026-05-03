@@ -116,13 +116,13 @@ This tool makes thousands of concurrent network requests to test proxies, which 
 3. **Build release binary with TUI enabled**
 
    ```bash
-   cargo build --release --features tui
+   cargo build --features tui --release --locked
    ```
 
 4. **Run with TUI**
 
    ```bash
-   cargo run --release --features tui
+   cargo run --features tui --release --locked
    ```
 
 **Binary location**:

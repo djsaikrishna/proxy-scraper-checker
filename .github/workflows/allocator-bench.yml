@@ -16,8 +16,11 @@ jobs:
         allocator:
           - system
           - jemalloc
+          - jemalloc_override
           - mimalloc_v2
+          - mimalloc_v2_override
           - mimalloc_v3
+          - mimalloc_v3_override
         tokio_multi_thread: [true, false]
         platform:
           - ubuntu-24.04-arm
@@ -56,8 +59,12 @@ jobs:
         exclude:
           - platform: windows-2025
             allocator: jemalloc
+          - platform: windows-2025
+            allocator: jemalloc_override
           - platform: windows-11-arm
             allocator: jemalloc
+          - platform: windows-11-arm
+            allocator: jemalloc_override
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:

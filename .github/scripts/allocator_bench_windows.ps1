@@ -7,7 +7,7 @@ if ($allocator -ne "system") { $features += $allocator }
 if ($tokioFeature) { $features += $tokioFeature }
 $featuresString = $features -join ","
 
-$args = @("build", "--release", "--locked")
+$args = @("build", "--no-default-features", "--release", "--locked")
 if ($featuresString) { $args += "--features"; $args += $featuresString }
 
 Start-Process -FilePath "cargo" -ArgumentList $args -NoNewWindow -Wait

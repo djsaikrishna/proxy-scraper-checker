@@ -24,9 +24,9 @@ fi
 
 : > /work/alpine-results.tsv
 if [ -n "$features" ]; then
-  cargo build --release --locked --features "$features"
+  cargo build --no-default-features --release --locked --features "$features"
 else
-  cargo build --release --locked
+  cargo build --no-default-features --release --locked
 fi
 
 output="$(/usr/bin/time -v /work/target/release/proxy-scraper-checker 2>&1 >/dev/null)"

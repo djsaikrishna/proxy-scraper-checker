@@ -73,18 +73,17 @@ use tracing_subscriber::{
 #[global_allocator]
 static GLOBAL: dhat::Alloc = dhat::Alloc;
 
-#[cfg(all(
-    feature = "jemalloc",
-    any(target_arch = "aarch64", target_arch = "x86_64"),
-    any(target_os = "linux", target_os = "macos"),
-))]
+#[cfg(feature = "jemalloc")]
 #[global_allocator]
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
-#[cfg(all(
-    any(feature = "mimalloc_v2", feature = "mimalloc_v3"),
-    any(target_arch = "aarch64", target_arch = "x86_64"),
-    any(target_os = "linux", target_os = "macos", target_os = "windows"),
+#[cfg(any(
+    all(
+        feature = "auto-allocator",
+        any(target_arch = "aarch64", target_arch = "x86_64"),
+        any(target_os = "linux", target_os = "macos", target_os = "windows"),
+    ),
+    feature = "__mimalloc"
 ))]
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
