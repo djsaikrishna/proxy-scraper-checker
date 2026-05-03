@@ -82,11 +82,13 @@ url = "=2.5.8"
 [features]
 # default = ["auto-allocator"]
 __mimalloc = ["dep:mimalloc"]
-auto-allocator = ["mimalloc_v3"]
+auto-allocator = ["dep:mimalloc"]
 dhat = ["dep:dhat"]
 jemalloc = ["dep:tikv-jemallocator"]
 mimalloc_v2 = ["__mimalloc", "mimalloc/v2"]
+mimalloc_v2_no_thp = ["mimalloc_v2", "mimalloc/no_thp"]
 mimalloc_v3 = ["__mimalloc"]
+mimalloc_v3_no_thp = ["mimalloc_v3", "mimalloc/no_thp"]
 tokio-multi-thread = []
 tui = [
   "dep:crossterm",

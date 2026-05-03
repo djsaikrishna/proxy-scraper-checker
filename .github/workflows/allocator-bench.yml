@@ -17,7 +17,9 @@ jobs:
           - system
           - jemalloc
           - mimalloc_v2
+          - mimalloc_v2_no_thp
           - mimalloc_v3
+          - mimalloc_v3_no_thp
         tokio_multi_thread: [true, false]
         platform:
           - ubuntu-24.04-arm
