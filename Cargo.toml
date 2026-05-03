@@ -31,7 +31,7 @@ log = { version = "=0.4.29", features = [
   "std",
 ] }
 maxminddb = { version = "=0.28.1", features = ["mmap"] }
-mimalloc = { version = "=0.1.50", optional = true }
+mimalloc = { version = "=0.1.50", features = ["override"], optional = true }
 parking_lot = "=0.12.5"
 rand = { version = "=0.10.1", default-features = false, features = [
   "std",
@@ -58,7 +58,9 @@ smallvec = { version = "=1.15.1", features = [
   "union",
 ], optional = true }
 strum = { version = "=0.28.0", features = ["derive"], optional = true }
-tikv-jemallocator = { version = "=0.6.1", optional = true }
+tikv-jemallocator = { version = "=0.6.1", features = [
+  "unprefixed_malloc_on_supported_platforms"
+], optional = true }
 tokio = { version = "=1.52.1", features = ["fs", "parking_lot", "signal"] }
 tokio-util = "=0.7.18"
 toml = { version = "=1.1.2", default-features = false, features = [
@@ -80,17 +82,11 @@ url = "=2.5.8"
 [features]
 # default = ["auto-allocator"]
 __mimalloc = ["dep:mimalloc"]
-auto-allocator = ["mimalloc_v3_override"]
+auto-allocator = ["mimalloc_v3"]
 dhat = ["dep:dhat"]
 jemalloc = ["dep:tikv-jemallocator"]
-jemalloc_override = [
-  "jemalloc",
-  "tikv-jemallocator/unprefixed_malloc_on_supported_platforms"
-]
 mimalloc_v2 = ["__mimalloc", "mimalloc/v2"]
-mimalloc_v2_override = ["mimalloc_v2", "mimalloc/override"]
 mimalloc_v3 = ["__mimalloc"]
-mimalloc_v3_override = ["mimalloc_v3", "mimalloc/override"]
 tokio-multi-thread = []
 tui = [
   "dep:crossterm",
